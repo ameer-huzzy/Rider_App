@@ -460,7 +460,7 @@ def import_data(
     try:
         # 1. Connect to Gmail IMAP
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
-        mail.login("careem029@gmail.com", "eakc iist vlgt uvcp")
+        mail.login("riderapp10@gmail.com", "bkeu cddl qrns dnwg")
         mail.select("inbox")
 
         # 2. Get latest email with attachment
