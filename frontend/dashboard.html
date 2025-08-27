@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rider Payment Dashboard</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="motorcycle-solid.svg" type="image/svg+xml">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <!-- Main Dashboard Container -->
+  <div class="dashboard-container">
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Logo Section -->
+      <div class="sidebar-logo">
+        <i class="fas fa-motorcycle"></i>
+        <h2 class="logo-text">Rider Dashboard</h2>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="sidebar-nav">
+        <a href="#" id="dashboardNav" class="active" title="Dashboard">
+          <i class="fas fa-home"></i><span class="link-text">Dashboard</span>
+        </a>
+        <a href="#" id="adminNav" title="Admin Panel">
+          <i class="fas fa-user-shield"></i><span class="link-text">Admin Panel</span>
+        </a>
+        <a href="#" id="reportsNav" title="Reports">
+          <i class="fas fa-chart-bar"></i><span class="link-text">Reports</span>
+        </a>
+        <!-- Settings Link (Commented Out) -->
+        <!-- <a href="#" title="Settings"><i class="fas fa-cog"></i><span class="link-text">Settings</span></a> -->
+      </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- Dashboard Header -->
+      <header class="dashboard-header">
+        <div class="header-left">
+          <!-- Sidebar Toggle Button -->
+          <button id="sidebarToggle" class="btn btn-icon" aria-label="Toggle sidebar" aria-expanded="true">
+            <i class="fas fa-bars"></i>
+          </button>
+          <!-- Dashboard Title -->
+          <div class="header-title">
+            <h1>Rider Payment Dashboard</h1>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <!-- Profile Dropdown Menu -->
+          <div class="profile-dropdown">
+            <button class="btn btn-icon" id="profileBtn" aria-haspopup="true" aria-expanded="false"
+              aria-controls="profileMenu">
+              <i class="fas fa-user-circle"></i>
+            </button>
+
+            <!-- Dropdown Menu Items -->
+            <div class="dropdown-menu hidden" id="profileMenu" role="menu">
+              <div class="dropdown-header" id="profileWelcome">Welcome</div>
+              <a href="#" class="dropdown-item" id="myAccountLink">My Account</a>
+              <a href="#" class="dropdown-item" id="changePasswordLink">Change Password</a>
+              <a href="#" class="dropdown-item" id="logoutLink">Logout</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- My Account Modal -->
+        <div id="myAccountModal" class="modal hidden">
+          <div class="modal-content">
+            <h2>My Account</h2>
+            <div class="account-info">
+              <div><span>ID:</span> <span id="accId">-</span></div>
+              <div><span>Username:</span> <span id="accUsername">-</span></div>
+              <div><span>Role:</span> <span id="accRole">-</span></div>
+              <div><span>Created At:</span> <span id="accCreated">-</span></div>
+            </div>
+            <div class="modal-actions">
+              <button type="button" id="closeAccountModal" class="btn btn-secondary">Close</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Change Password Modal -->
+        <div id="changePasswordModal" class="modal hidden">
+          <div class="modal-content">
+            <h2>Change Password</h2>
+            <form id="changePasswordForm">
+              <!-- Old Password -->
+              <label for="oldPassword">Old Password</label>
+              <div class="password-wrapper">
+                <input type="password" id="oldPassword" required>
+                <button type="button" class="toggle-password" data-target="oldPassword">
+                  <i class="fa-regular fa-eye"></i>
+                </button>
+              </div>
+
+              <!-- New Password -->
+              <label for="newPassword">New Password</label>
+              <div class="password-wrapper">
+                <input type="password" id="newPassword" required>
+                <button type="button" class="toggle-password" data-target="newPassword">
+                  <i class="fa-regular fa-eye"></i>
+                </button>
+              </div>
+
+              <!-- Confirm Password -->
+              <label for="confirmPassword">Confirm Password</label>
+              <div class="password-wrapper">
+                <input type="password" id="confirmPassword" required>
+                <button type="button" class="toggle-password" data-target="confirmPassword">
+                  <i class="fa-regular fa-eye"></i>
+                </button>
+              </div>
+
+              <!-- Modal Action Buttons -->
+              <div class="modal-actions">
+                <button type="submit" class="btn">Update Password</button>
+                <button type="button" id="cancelChangePwd" class="btn btn-secondary">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <!-- Admin Panel Section -->
+      <div id="adminPanelSection" class="admin-panel hidden">
+        <div class="admin-header">
+          <h2>User Management</h2>
+          <button id="createUserBtn" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> Create User
+          </button>
+        </div>
+
+        <!-- Admin Users Table -->
+        <div class="table-responsive">
+          <table id="adminUsersTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Date Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rows will be added dynamically using JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Reports Section -->
+      <section id="reportsSection" class="hidden">
+        <div class="reports-header">
+          <h2><i class="fas fa-chart-bar"></i> Reports</h2>
+        </div>
+
+        <!-- Filters for Reports -->
+        <div class="filters-section">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input id="searchInput1" type="text" placeholder="Search by Captain ID, Name, etc..." />
+          </div>
+
+          <!-- Date Filters -->
+          <div class="date-filters">
+            <div class="date-input1">
+              <div class="date-wrapper">
+                <label>From</label>
+                <input id="startDate1" type="date" />
+              </div>
+            </div>
+            <div class="date-input1">
+              <div class="date-wrapper">
+                <label>To</label>
+                <input id="endDate1" type="date" />
+              </div>
+            </div>
+
+            <!-- Filter Buttons -->
+            <button id="filterBtn1" class="btn btn-primary">
+              <i class="fas fa-filter"></i> Filter
+            </button>
+            <button id="clearFilterBtn1" class="btn btn-secondary">
+              <i class="fas fa-times"></i> Clear
+            </button>
+
+            <!-- Row Limit Dropdown -->
+            <div class="limit-filter">
+              <label for="rowLimit1">Show</label>
+              <select id="reportLimit">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+                <option value="40">40</option>
+                <option value="50">50</option>
+                <option value="60">60</option>
+                <option value="70">70</option>
+                <option value="80">80</option>
+                <option value="90">90</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reports Table -->
+        <div class="table-responsive">
+          <table id="reportsTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Action</th>
+                <th>Date Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Placeholder row for no data -->
+              <tr class="no-data">
+                <td colspan="5">No records found</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Dashboard Stats and Actions -->
+      <div class="dashboard-content">
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon bg-blue"><i class="fas fa-users"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Total Riders</span>
+              <span id="totalRiders" class="stat-value">0</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon bg-green"><i class="fas fa-clock"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Total Hours</span>
+              <span id="totalHours" class="stat-value">0</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon bg-purple"><i class="fas fa-chart-line"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Average Hours</span>
+              <span id="avgHours" class="stat-value">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="filters-section">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input id="searchInput" type="text" placeholder="Search by Captain ID, Name, etc..." />
+          </div>
+          <div class="date-filters">
+            <div class="date-input">
+              <div class="date-wrapper">
+                <label>From</label>
+                <input id="startDate" type="date" />
+              </div>
+            </div>
+            <div class="date-input">
+              <div class="date-wrapper">
+                <label>To</label>
+                <input id="endDate" type="date" />
+              </div>
+            </div>
+            <button id="filterBtn" class="btn btn-primary">
+              <i class="fas fa-filter"></i> Filter
+            </button>
+            <button id="clearFilterBtn" class="btn btn-secondary">
+              <i class="fas fa-times"></i> Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <div class="left-actions">
+            <button id="importDataBtn" type="button" class="btn btn-secondary">
+              <i class="fas fa-file-import"></i> Import Data
+            </button>
+          </div>
+          <div class="right-actions">
+            <button id="downloadCSVBtn" class="btn btn-secondary">
+              <i class="fas fa-file-csv"></i> Export CSV
+            </button>
+            <button id="downloadPDFBtn" class="btn btn-secondary">
+              <i class="fas fa-file-pdf"></i> Export PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- Payments Table -->
+        <div class="table-responsive">
+          <table id="paymentsTable">
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Careem Captain ID</th>
+                <th>Name</th>
+                <th>Person Code</th>
+                <th>Card No</th>
+                <th>Designation</th>
+                <th>Date of Joining</th>
+                <th>Total Working Hours</th>
+                <th>No of Days</th>
+                <th>Total Orders</th>
+                <th>Actual Order Pay</th>
+                <th>Total Excess Pay Bonus and Dist Pay</th>
+                <th>Gross Pay</th>
+                <th>Total COD</th>
+                <th>Vendor Fee</th>
+                <th>Traffic Fine</th>
+                <th>Loan/SalAdv/OS Fine</th>
+                <th>Training Fee</th>
+                <th>Net Salary</th>
+                <th>Imported At</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Payment data will be inserted dynamically via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Create User Modal -->
+  <div id="createUserModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" id="closeModal">&times;</span>
+      <h2>Create Users</h2>
+      <form id="createUserForm">
+        <div class="form-group">
+          <label for="createUsername">Username</label>
+          <input type="text" id="createUsername" required />
+        </div>
+
+        <div class="form-group password-field">
+          <label for="createPassword">Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="createPassword" required />
+            <button type="button" id="toggleNewPwd" class="toggle-password" aria-label="Show password">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="newRole">Role</label>
+          <select id="newRole" required>
+            <option value="Admin">Admin</option>
+            <option value="User">User</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save User</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit User Modal -->
+  <div id="editUserModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" id="closeEditModal">&times;</span>
+      <h2>Edit User</h2>
+      <form id="editUserForm">
+        <div class="form-group">
+          <label for="editUsername">Username</label>
+          <input type="text" id="editUsername" disabled />
+        </div>
+
+        <div class="form-group">
+          <label for="editRole">Role</label>
+          <select id="editRole" required>
+            <option value="Admin">Admin</option>
+            <option value="User">User</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Update User</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- External Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Request Reset Token</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Base Styles */
+    :root {
+      --primary: #4361ee;
+      --primary-dark: #3a56d4;
+      --secondary: #3f37c9;
+      --light: #f8f9fa;
+      --dark: #212529;
+      --gray: #6c757d;
+      --light-gray: #e9ecef;
+      --white: #ffffff;
+      --blue: #4361ee;
+      --green: #4cc9f0;
+      --border-radius: 8px;
+      --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition: all 0.3s ease;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+      padding: 20px;
+      overflow: hidden;
+    }
+    
+    .background-shapes {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+    
+    .shape {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0.05;
+    }
+    
+    .shape-1 {
+      width: 500px;
+      height: 500px;
+      background: var(--primary);
+      top: -250px;
+      left: -100px;
+    }
+    
+    .shape-2 {
+      width: 400px;
+      height: 400px;
+      background: var(--blue);
+      bottom: -200px;
+      right: -100px;
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 450px;
+      perspective: 1000px;
+    }
+    
+    .card {
+      width: 100%;
+      background: var(--white);
+      border-radius: var(--border-radius);
+      padding: 40px 35px;
+      box-shadow: var(--box-shadow);
+      border: 1px solid var(--light-gray);
+      transform-style: preserve-3d;
+      animation: cardEntrance 0.8s ease-out;
+    }
+    
+    @keyframes cardEntrance {
+      from {
+        opacity: 0;
+        transform: translateY(50px) rotateX(30deg);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) rotateX(0);
+      }
+    }
+    
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .logo i {
+      font-size: 40px;
+      color: var(--white);
+      background: var(--primary);
+      width: 80px;
+      height: 80px;
+      line-height: 80px;
+      border-radius: 50%;
+      box-shadow: 0 10px 20px rgba(67, 97, 238, 0.3);
+    }
+    
+    .logo h1 {
+      color: var(--dark);
+      margin-top: 15px;
+      font-weight: 600;
+      font-size: 28px;
+      letter-spacing: 1px;
+    }
+    
+    .logo p {
+      color: var(--gray);
+      margin-top: 5px;
+      font-size: 14px;
+    }
+    
+    .input-group {
+      position: relative;
+      margin-bottom: 25px;
+    }
+    
+    .input-group input {
+      width: 100%;
+      padding: 15px 20px;
+      border: 1px solid var(--light-gray);
+      background: var(--light);
+      border-radius: var(--border-radius);
+      outline: none;
+      color: var(--dark);
+      font-size: 16px;
+      transition: var(--transition);
+      height: 50px;
+    }
+    
+    .input-group input::placeholder {
+      color: var(--gray);
+    }
+    
+    .input-group input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+    }
+    
+    button {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: var(--border-radius);
+      background: var(--primary);
+      color: var(--white);
+      font-weight: 600;
+      font-size: 18px;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: 0 4px 6px rgba(67, 97, 238, 0.2);
+      letter-spacing: 1px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 15px rgba(67, 97, 238, 0.3);
+      background: var(--primary-dark);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    .btn-copy {
+      width: auto;
+      padding: 10px 20px;
+      margin-top: 15px;
+      background: var(--green);
+      display: none;
+    }
+    
+    .btn-copy:hover {
+      background: #3bb4d8;
+    }
+    
+    .message {
+      padding: 12px;
+      border-radius: var(--border-radius);
+      margin-top: 20px;
+      text-align: center;
+      display: none;
+    }
+    
+    .success {
+      background: rgba(40, 167, 69, 0.1);
+      color: #28a745;
+      border: 1px solid rgba(40, 167, 69, 0.2);
+    }
+    
+    .error {
+      background: rgba(220, 53, 69, 0.1);
+      color: #dc3545;
+      border: 1px solid rgba(220, 53, 69, 0.2);
+      animation: shake 0.5s linear;
+    }
+    
+    @keyframes shake {
+      0%, 100% {transform: translateX(0);}
+      20%, 60% {transform: translateX(-5px);}
+      40%, 80% {transform: translateX(5px);}
+    }
+    
+    .loader {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--white);
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .link-text {
+      text-align: center;
+      margin-top: 20px;
+    }
+    
+    .link-text a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 14px;
+      transition: var(--transition);
+    }
+    
+    .link-text a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 500px) {
+      .card {
+        padding: 30px 25px;
+      }
+      
+      .logo h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="background-shapes">
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+  </div>
+  
+  <div class="container">
+    <div class="card">
+      <div class="logo">
+        <i class="fas fa-key"></i>
+        <h1>Request Reset Token</h1>
+        <p>Enter your username to generate a reset token</p>
+      </div>
+      
+      <form id="requestForm">
+        <div class="input-group">
+          <input type="text" id="username" placeholder="Enter username" required />
+        </div>
+        
+        <button type="submit" id="requestBtn">
+          <span id="btnText">Generate Token</span>
+          <div class="loader" id="loader"></div>
+        </button>
+      </form>
+      
+      <button id="copyBtn" class="btn-copy">
+        <i class="fas fa-copy"></i> Copy Reset Token
+      </button>
+      
+      <p id="message" class="message"></p>
+      
+      <div class="link-text">
+        <a href="reset.html">Already have a token?</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const requestForm = document.getElementById("requestForm");
+      const message = document.getElementById("message");
+      const requestBtn = document.getElementById("requestBtn");
+      const copyBtn = document.getElementById("copyBtn");
+      const btnText = document.getElementById("btnText");
+      const loader = document.getElementById("loader");
+      let resetToken = '';
+      
+      requestForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const username = document.getElementById("username").value.trim();
+        
+        // Show loading state
+        btnText.style.display = 'none';
+        loader.style.display = 'block';
+        requestBtn.disabled = true;
+        
+        try {
+          const res = await fetch("http://127.0.0.1:8000/generate-reset-token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username })
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            message.textContent = data.detail || "Request failed";
+            message.className = "message error";
+            message.style.display = "block";
+            return;
+          }
+
+          // Store the token but don't display it
+          resetToken = data.reset_token;
+          
+          // Show success message and copy button
+          message.textContent = "✅ Reset token generated successfully! Click the button below to copy it.";
+          message.className = "message success";
+          message.style.display = "block";
+          
+          // Show the copy button
+          copyBtn.style.display = "flex";
+          copyBtn.style.margin = "15px auto 0";
+
+        } catch (err) {
+          message.textContent = "Server error";
+          message.className = "message error";
+          message.style.display = "block";
+        } finally {
+          // Reset button state
+          btnText.style.display = 'block';
+          loader.style.display = 'none';
+          requestBtn.disabled = false;
+        }
+      });
+      
+      // Copy token to clipboard
+      copyBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(resetToken).then(() => {
+          // Show confirmation
+          const originalText = copyBtn.innerHTML;
+          copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+          copyBtn.style.background = "#28a745";
+          
+          // Revert after 2 seconds
+          setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.style.background = "";
+          }, 2000);
+        }).catch(err => {
+          alert("Failed to copy token: " + err);
+        });
+      });
+    });
+  </script>
+</body>
+</html>
