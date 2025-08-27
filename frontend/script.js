@@ -1,55 +1,42 @@
 // ================================
-// CONFIGURATION
+// CONFIG
 // ================================
-const API_URL = "http://127.0.0.1:8000"; // Base API URL
+const API_URL = "http://127.0.0.1:8000";
 
 // ================================
-// APPLICATION STATE
+// STATE
 // ================================
-let rawData = []; // Original data from API
-let filteredData = []; // Filtered data for display
-let cachedUsers = []; // Cached user list for admin panel
-let isEditingUser = false; // Modal state flag
-let editingUsername = null; // Currently edited username
+let rawData = [];
+let filteredData = [];
+let cachedUsers = [];
+let isEditingUser = false; // modal state
+let editingUsername = null;
 
 // ================================
-// INITIALIZATION
+// BOOT
 // ================================
 document.addEventListener("DOMContentLoaded", () => {
-  secureRouteGuard(); // Check authentication
-  bindGlobalUI(); // Setup global UI elements
-  bindDashboardUI(); // Setup dashboard functionality
-  bindAdminUI(); // Setup admin panel functionality
-  bindReportsUI(); // Setup reports functionality
-  bindAccountsUI(); // Setup accounts functionality
-  loadProfileHeader(); // Load user profile in header
-  loadDashboard(); // Load dashboard stats and payments
+  secureRouteGuard();
+  bindGlobalUI();
+  bindDashboardUI();
+  bindAdminUI();
+  bindReportsUI();
+  bindAccountsUI();
+  loadProfileHeader();
+  loadDashboard(); // stats + payments
 });
 
 // ================================
-// AUTHENTICATION & SECURITY
+// AUTH / GUARD
 // ================================
-
-/**
- * Retrieve JWT token from localStorage
- * @returns {string|null} JWT token or null
- */
 function getToken() {
   return localStorage.getItem("access_token");
 }
-
-/**
- * Retrieve user role from localStorage
- * @returns {string} User role (admin/user)
- */
 function getRole() {
-  const role = localStorage.getItem("role");
-  return role ? role.toLowerCase() : "";
+  // Ensure lowercase ("admin" | "user")
+  const r = localStorage.getItem("role");
+  return r ? r.toLowerCase() : "";
 }
-
-/**
- * Redirect to login if no valid token exists
- */
 function secureRouteGuard() {
   if (!getToken()) {
     window.location.href = "index.html";
@@ -57,238 +44,140 @@ function secureRouteGuard() {
 }
 
 // ================================
-// UTILITY FUNCTIONS
+// SHARED HELPERS
 // ================================
-
-/**
- * Safely return value or empty string if null/undefined
- * @param {*} value - Input value
- * @returns {*} Value or empty string
- */
-function safe(value) {
-  return value ?? "";
+function safe(v) { return v ?? ""; }
+function toNumber(v) {
+  if (v === null || v === undefined || v === "") return 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
-
-/**
- * Convert value to number, return 0 if invalid
- * @param {*} value - Input value
- * @returns {number} Valid number or 0
- */
-function toNumber(value) {
-  if (value === null || value === undefined || value === "") return 0;
-  const num = Number(value);
-  return Number.isFinite(num) ? num : 0;
+function parseLooseDate(s) {
+  if (!s) return null;
+  if (s instanceof Date) return s;
+  if (typeof s !== "string") return null;
+  const t = s.includes("T") ? s.split("T")[0] : s.split(" ")[0];
+  if (!t) return null;
+  const dt = new Date(t + "T00:00:00");
+  return isNaN(dt.getTime()) ? null : dt;
 }
-
-/**
- * Parse loosely formatted date string
- * @param {string} dateString - Date string to parse
- * @returns {Date|null} Parsed date or null
- */
-function parseLooseDate(dateString) {
-  if (!dateString) return null;
-  if (dateString instanceof Date) return dateString;
-  if (typeof dateString !== "string") return null;
-  
-  // Extract date portion from datetime strings
-  const datePart = dateString.includes("T") 
-    ? dateString.split("T")[0] 
-    : dateString.split(" ")[0];
-  
-  if (!datePart) return null;
-  
-  const parsedDate = new Date(datePart + "T00:00:00");
-  return isNaN(parsedDate.getTime()) ? null : parsedDate;
+function formatDateForDisplay(s) {
+  const d = parseLooseDate(s);
+  if (!d) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
-
-/**
- * Format date for display in YYYY-MM-DD format
- * @param {string} dateString - Date string to format
- * @returns {string} Formatted date or empty string
- */
-function formatDateForDisplay(dateString) {
-  const date = parseLooseDate(dateString);
-  if (!date) return "";
-  
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  
-  return `${year}-${month}-${day}`;
-}
-
-/**
- * Display toast notification
- * @param {string} message - Message to display
- * @param {string} type - Toast type (info/success/error/update/delete)
- */
 function showToast(message, type = "info") {
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
   toast.textContent = message;
   document.body.appendChild(toast);
-  
-  // Animation timing
   setTimeout(() => toast.classList.add("show"), 50);
   setTimeout(() => {
     toast.classList.remove("show");
     setTimeout(() => toast.remove(), 250);
   }, 2500);
 }
-
-/**
- * Normalize role value to 'admin' or 'user'
- * @param {string} role - Role to normalize
- * @returns {string} Normalized role
- */
-function normalizeRole(role) {
-  if (!role) return "user";
-  const normalized = String(role).trim().toLowerCase();
-  return normalized === "admin" ? "admin" : "user";
+function normalizeRole(val) {
+  if (!val) return "user";
+  const v = String(val).trim().toLowerCase();
+  return v === "admin" ? "admin" : "user";
 }
 
 // ================================
-// HEADER & NAVIGATION
+// HEADER / SIDEBAR / PROFILE
 // ================================
-
-/**
- * Setup global UI elements (sidebar, profile menu, navigation)
- */
 function bindGlobalUI() {
-  setupSidebarToggle();
-  setupProfileDropdown();
-  setupNavigation();
-}
-
-/**
- * Setup sidebar toggle functionality
- */
-function setupSidebarToggle() {
+  // Sidebar collapse
   const sidebar = document.getElementById("sidebar");
   const sidebarToggle = document.getElementById("sidebarToggle");
-  
   if (sidebar && sidebarToggle) {
     sidebarToggle.setAttribute("aria-expanded", "true");
     sidebarToggle.addEventListener("click", () => {
-      const isCollapsed = sidebar.classList.toggle("collapsed");
-      sidebarToggle.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+      const collapsed = sidebar.classList.toggle("collapsed");
+      sidebarToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
     });
   }
-}
 
-/**
- * Setup profile dropdown functionality
- */
-function setupProfileDropdown() {
+  // Profile dropdown
   const profileBtn = document.getElementById("profileBtn");
   const profileMenu = document.getElementById("profileMenu");
   const logoutLink = document.getElementById("logoutLink");
 
   if (profileBtn && profileMenu) {
-    // Toggle profile menu on button click
     profileBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const isHidden = profileMenu.classList.toggle("hidden");
-      profileBtn.setAttribute("aria-expanded", isHidden ? "false" : "true");
+      const nowHidden = profileMenu.classList.toggle("hidden");
+      profileBtn.setAttribute("aria-expanded", nowHidden ? "false" : "true");
     });
-    
-    // Close menu when clicking outside
     document.addEventListener("click", () => {
       if (!profileMenu.classList.contains("hidden")) {
         profileMenu.classList.add("hidden");
         profileBtn.setAttribute("aria-expanded", "false");
       }
     });
-    
-    // Prevent menu from closing when clicking inside it
     profileMenu.addEventListener("click", (e) => e.stopPropagation());
   }
 
-  // Handle logout
-  logoutLink?.addEventListener("click", handleLogout);
-}
 
-/**
- * Handle user logout process
- * @param {Event} e - Click event
- */
-async function handleLogout(e) {
-  e.preventDefault();
-  const token = getToken();
-  const refreshToken = localStorage.getItem("refresh_token");
-  
-  try {
-    // Notify backend to blacklist tokens
-    await fetch(`${API_URL}/logout`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        access_token: token,
-        refresh_token: refreshToken,
-      }),
-    });
-  } catch (error) {
-    // Continue with logout even if API call fails
-    console.error("Logout API error:", error);
-  }
-  
-  // Clear local storage and redirect
-  localStorage.clear();
-  window.location.href = "index.html";
-}
+  // Logout -> backend blacklist
+  logoutLink?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem("access_token");
+    const refresh = localStorage.getItem("refresh_token");
+    try {
+      await fetch(`${API_URL}/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          access_token: token,
+          refresh_token: refresh,
+        }),
+      });
+    } catch (_) { }
+    localStorage.clear();
+    window.location.href = "index.html";
+  });
 
-/**
- * Setup navigation between sections
- */
-function setupNavigation() {
+  // Sidebar Nav -> show/hide sections
   const dashboardNav = document.getElementById("dashboardNav");
   const adminNav = document.getElementById("adminNav");
   const reportsNav = document.getElementById("reportsNav");
   const accountsNav = document.getElementById("accountsNav");
-  
   const dashboardContent = document.querySelector(".dashboard-content");
   const adminSection = document.getElementById("adminPanelSection");
   const reportsSection = document.getElementById("reportsSection");
   const accountsSection = document.getElementById("accountsSection");
 
-  /**
-   * Show specific section and hide others
-   * @param {HTMLElement} section - Section to show
-   */
   function showSection(section) {
-    // Hide all sections
     dashboardContent?.classList.add("hidden");
     adminSection?.classList.add("hidden");
     reportsSection?.classList.add("hidden");
     accountsSection?.classList.add("hidden");
-    
-    // Show requested section
     section?.classList.remove("hidden");
 
-    // Update active navigation
-    document.querySelectorAll(".sidebar-nav a").forEach((el) => 
+    document.querySelectorAll(".sidebar-nav a").forEach((el) =>
       el.classList.remove("active")
     );
-    
     if (section === dashboardContent) dashboardNav?.classList.add("active");
     if (section === adminSection) {
       adminNav?.classList.add("active");
-      // Load users when entering admin panel
+      // Lazy load users when entering admin panel
       if (getRole() === "admin") loadAdminUsers();
     }
     if (section === reportsSection) reportsNav?.classList.add("active");
     if (section === accountsSection) accountsNav?.classList.add("active");
   }
 
-  // Navigation event handlers
   dashboardNav?.addEventListener("click", (e) => {
     e.preventDefault();
     showSection(dashboardContent);
   });
-  
   adminNav?.addEventListener("click", (e) => {
     e.preventDefault();
     if (getRole() !== "admin") {
@@ -297,12 +186,10 @@ function setupNavigation() {
     }
     showSection(adminSection);
   });
-  
   reportsNav?.addEventListener("click", (e) => {
     e.preventDefault();
     showSection(reportsSection);
   });
-  
   accountsNav?.addEventListener("click", (e) => {
     e.preventDefault();
     showSection(accountsSection);
@@ -310,80 +197,58 @@ function setupNavigation() {
   });
 }
 
-/**
- * Load user profile information into header
- */
 async function loadProfileHeader() {
   const token = getToken();
   const profileWelcome = document.getElementById("profileWelcome");
-  
   if (!token || !profileWelcome) return;
-  
   try {
-    // Fetch current user data
-    const response = await fetch(`${API_URL}/me`, {
+    const meRes = await fetch(`${API_URL}/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    
-    if (!response.ok) throw new Error("Failed to fetch user data");
-    
-    const userData = await response.json();
-    
-    // Store user data in localStorage
-    localStorage.setItem("username", userData.username);
-    localStorage.setItem("role", userData.role);
-    
-    // Update welcome message
-    profileWelcome.textContent = `Welcome, ${userData.username}`;
-  } catch (error) {
-    // Fallback to saved username if API call fails
+    if (!meRes.ok) throw new Error();
+    const me = await meRes.json();
+    localStorage.setItem("username", me.username);
+    localStorage.setItem("role", me.role);
+    profileWelcome.textContent = `Welcome, ${me.username}`;
+  } catch {
+    // fallback to saved username if available
     const savedUsername = localStorage.getItem("username");
-    profileWelcome.textContent = savedUsername 
-      ? `Welcome, ${savedUsername}` 
-      : "Welcome";
+    profileWelcome.textContent = savedUsername ? `Welcome, ${savedUsername}` : "Welcome";
   }
 }
 
-// ================================
-// PASSWORD MANAGEMENT
-// ================================
 
-// Get password modal elements
+
+/* ================================
+ Change Password – open/close + eye toggles + submit
+================================== */
 const changePasswordLink = document.getElementById("changePasswordLink");
 const changePasswordModal = document.getElementById("changePasswordModal");
 const changePasswordForm = document.getElementById("changePasswordForm");
 const cancelChangePwdBtn = document.getElementById("cancelChangePwd");
 const profileMenuEl = document.getElementById("profileMenu");
 
-/**
- * Open change password modal
- */
 function openChangePasswordModal() {
   if (!changePasswordModal) return;
-  
-  // Reset form and hide password fields
+
+  // reset form + inputs back to password type
   changePasswordForm?.reset();
   ["oldPassword", "newPassword", "confirmPassword"].forEach(id => {
     const input = document.getElementById(id);
     if (input) input.type = "password";
   });
-  
-  // Reset eye icons to show password
-  changePasswordModal.querySelectorAll(".toggle-password i").forEach(icon => {
-    icon.classList.remove("fa-eye-slash");
-    icon.classList.add("fa-eye");
+  // reset icons to "eye"
+  changePasswordModal.querySelectorAll(".toggle-password i").forEach(i => {
+    i.classList.remove("fa-eye-slash");
+    i.classList.add("fa-eye");
   });
 
-  // Hide profile dropdown if open
+  // hide profile dropdown if open
   profileMenuEl?.classList.add("hidden");
 
-  // Show modal
   changePasswordModal.classList.remove("hidden");
 }
 
-/**
- * Close change password modal
- */
 function closeChangePasswordModal() {
   changePasswordModal?.classList.add("hidden");
 }
@@ -394,37 +259,34 @@ changePasswordLink?.addEventListener("click", (e) => {
   openChangePasswordModal();
 });
 
-// Close modal with cancel button
+// Close: cancel button
 cancelChangePwdBtn?.addEventListener("click", () => {
   closeChangePasswordModal();
 });
 
-// Close modal when clicking outside
+// Close: click outside modal content
 window.addEventListener("click", (e) => {
   if (e.target === changePasswordModal) closeChangePasswordModal();
 });
 
-// Close modal with ESC key
+// Close: ESC key
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && changePasswordModal && 
-      !changePasswordModal.classList.contains("hidden")) {
+  if (e.key === "Escape" && changePasswordModal && !changePasswordModal.classList.contains("hidden")) {
     closeChangePasswordModal();
   }
 });
 
-// Toggle password visibility
-changePasswordModal?.querySelectorAll(".toggle-password").forEach(button => {
-  button.addEventListener("click", () => {
-    const targetId = button.getAttribute("data-target");
+// Eye toggles (works for old/new/confirm)
+changePasswordModal?.querySelectorAll(".toggle-password").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const targetId = btn.getAttribute("data-target");
     const input = document.getElementById(targetId);
     if (!input) return;
 
-    // Toggle input type
     const isHidden = input.type === "password";
     input.type = isHidden ? "text" : "password";
 
-    // Update eye icon
-    const icon = button.querySelector("i");
+    const icon = btn.querySelector("i");
     if (icon) {
       icon.classList.toggle("fa-eye-slash", isHidden);
       icon.classList.toggle("fa-eye", !isHidden);
@@ -432,71 +294,57 @@ changePasswordModal?.querySelectorAll(".toggle-password").forEach(button => {
   });
 });
 
-// Handle password change form submission
+
+// Submit: update password
 changePasswordForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const token = getToken();
+  const token = getToken(); // same helper you already use for admin actions
 
-  // Get form values
   const oldPassword = document.getElementById("oldPassword")?.value?.trim();
   const newPassword = document.getElementById("newPassword")?.value?.trim();
   const confirmPassword = document.getElementById("confirmPassword")?.value?.trim();
 
-  // Validation
+  // basic validation
   if (!oldPassword || !newPassword || !confirmPassword) {
     return showToast("⚠️ Please fill all fields", "error");
   }
-  
   if (newPassword !== confirmPassword) {
     return showToast("❌ New and Confirm passwords do not match", "error");
   }
 
   try {
-    // Send password update request
-    const response = await fetch(`${API_URL}/profile/update-password`, {
+    const res = await fetch(`${API_URL}/profile/update-password`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${token}`, // consistent with your other requests
       },
       body: JSON.stringify({
-        old_password: oldPassword,
+        old_password: oldPassword, // backend expects snake_case
         new_password: newPassword,
       }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || errorData.message || "Password update failed");
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || data.message || "Password update failed");
     }
 
-    // Success handling
     showToast("✅ Password updated successfully", "success");
     changePasswordForm.reset();
     closeChangePasswordModal();
-  } catch (error) {
-    console.error("Password update error:", error);
-    showToast(error.message || "⚠️ Operation failed", "error");
+  } catch (err) {
+    console.error("Password update error:", err);
+    showToast(err.message || "⚠️ Operation failed", "error");
   }
 });
 
-// ================================
-// DASHBOARD FUNCTIONALITY
-// ================================
 
-/**
- * Setup dashboard UI elements and event listeners
- */
+
+// ================================
+// DASHBOARD (stats + payments + filters + export + import)
+// ================================
 function bindDashboardUI() {
-  setupDashboardFilters();
-  setupExportButtons();
-  setupImportButton();
-}
-
-/**
- * Setup dashboard filter functionality
- */
-function setupDashboardFilters() {
   const searchInput = document.getElementById("searchInput");
   const filterBtn = document.getElementById("filterBtn");
   const clearFilterBtn = document.getElementById("clearFilterBtn");
@@ -505,22 +353,14 @@ function setupDashboardFilters() {
   filterBtn?.addEventListener("click", applyFilters);
   clearFilterBtn?.addEventListener("click", clearFilters);
 
-  // Secondary filter set (if exists)
   const searchInput1 = document.getElementById("searchInput1");
   const filterBtn1 = document.getElementById("filterBtn1");
   const clearFilterBtn1 = document.getElementById("clearFilterBtn1");
 
-  if (searchInput1 && filterBtn1 && clearFilterBtn1) {
-    searchInput1.addEventListener("input", applyFilters);
-    filterBtn1.addEventListener("click", applyFilters);
-    clearFilterBtn1.addEventListener("click", clearFilters1);
-  }
-}
+  searchInput1?.addEventListener("input", applyFilters);
+  filterBtn1?.addEventListener("click", applyFilters);
+  clearFilterBtn1?.addEventListener("click", clearFilters1);
 
-/**
- * Setup export buttons functionality
- */
-function setupExportButtons() {
   document.getElementById("downloadCSVBtn")?.addEventListener("click", () => {
     downloadCSV(filteredData.length ? filteredData : rawData);
   });
@@ -528,153 +368,104 @@ function setupExportButtons() {
   document.getElementById("downloadPDFBtn")?.addEventListener("click", () => {
     downloadPDF(filteredData.length ? filteredData : rawData);
   });
-}
 
-/**
- * Setup data import functionality
- */
-function setupImportButton() {
+  // Import Data (admin only)
   const importBtn = document.getElementById("importDataBtn");
+  console.log("Import Button:", importBtn);
 
-  importBtn?.addEventListener("click", handleDataImport);
-}
+  importBtn?.addEventListener("click", async (event) => {
+    event.preventDefault();  // stops form submit
+    event.stopPropagation(); // stops any parent handlers
 
-/**
- * Handle data import process
- * @param {Event} event - Click event
- */
-async function handleDataImport(event) {
-  event.preventDefault();
-  event.stopPropagation();
-
-  const token = getToken();
-  
-  // Admin-only feature
-  if (getRole() !== "admin") {
-    showToast("Admins only.", "error");
-    return;
-  }
-
-  // Show loading state
-  importBtn.disabled = true;
-  const originalText = importBtn.innerHTML;
-  importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
-
-  try {
-    // Send import request
-    const response = await fetch(`${API_URL}/import-data`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const responseText = await response.text();
-    let responseData;
-    
-    try { 
-      responseData = JSON.parse(responseText); 
-    } catch { 
-      responseData = { message: responseText }; 
+    const token = getToken();
+    if (getRole() !== "admin") {
+      showToast("Admins only.", "error");
+      return;
     }
 
-    if (!response.ok) {
-      // Handle already imported case
-      if (response.status === 400 && responseData.detail && 
-          responseData.detail.includes("already imported")) {
-        alert(responseData.detail);
+    importBtn.disabled = true;
+    const old = importBtn.innerHTML;
+    importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+
+    try {
+      const res = await fetch(`${API_URL}/import-data`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+      if (!res.ok) {
+        // Handle HTTP errors (including already imported case)
+        if (res.status === 400 && data.detail && data.detail.includes("already imported")) {
+          alert(data.detail);  // ✅ show simple alert
+        } else {
+          throw new Error(data.detail || data.message || "Import failed");
+        }
       } else {
-        throw new Error(responseData.detail || responseData.message || "Import failed");
+        // Success case
+        if (data.message && data.message.includes("already imported")) {
+          alert(data.message); // ✅ show simple alert for existing data
+        } else {
+          showToast(data.message || "Import successful", "success");
+          // await loadDashboard(); // refresh table after import
+        }
       }
-    } else {
-      // Success case
-      if (responseData.message && responseData.message.includes("already imported")) {
-        alert(responseData.message);
-      } else {
-        showToast(responseData.message || "Import successful", "success");
-      }
+
+    } catch (err) {
+      showToast(err.message || "Import failed", "error");
+    } finally {
+      importBtn.disabled = false;
+      importBtn.innerHTML = old;
     }
-  } catch (error) {
-    showToast(error.message || "Import failed", "error");
-  } finally {
-    // Restore button state
-    importBtn.disabled = false;
-    importBtn.innerHTML = originalText;
-  }
+  });
+
+
 }
 
-/**
- * Load dashboard data (stats and payments)
- */
 async function loadDashboard() {
   const token = getToken();
   const role = getRole();
-  
   if (!token) {
     window.location.href = "index.html";
     return;
   }
 
   try {
-    // Load dashboard statistics
-    await loadDashboardStats(token, role);
-    
-    // Load payment data
-    await loadPaymentData(token, role);
-  } catch (error) {
-    console.error("Dashboard load failed", error);
-  }
-}
-
-/**
- * Load dashboard statistics
- * @param {string} token - JWT token
- * @param {string} role - User role
- */
-async function loadDashboardStats(token, role) {
-  const statsResponse = await fetch(`${API_URL}/dashboard/stats`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  
-  if (statsResponse.ok) {
-    const stats = await statsResponse.json();
-    
-    // Update stats in UI
-    if (role === "admin" && document.getElementById("totalRiders")) {
-      document.getElementById("totalRiders").textContent = stats.total_riders ?? 0;
-    } else if (document.getElementById("totalRiders")) {
-      document.getElementById("totalRiders").textContent = "-";
+    // Stats
+    const statsRes = await fetch(`${API_URL}/dashboard/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const stats = await statsRes.json();
+    if (statsRes.ok) {
+      if (role === "admin" && document.getElementById("totalRiders")) {
+        document.getElementById("totalRiders").textContent = stats.total_riders ?? 0;
+      } else if (document.getElementById("totalRiders")) {
+        document.getElementById("totalRiders").textContent = "-";
+      }
+      document.getElementById("totalHours").textContent = stats.total_hours ?? 0;
+      document.getElementById("avgHours").textContent =
+        (stats.avg_hours ?? 0).toFixed ? stats.avg_hours.toFixed(2) : Number(stats.avg_hours || 0).toFixed(2);
     }
-    
-    document.getElementById("totalHours").textContent = stats.total_hours ?? 0;
-    document.getElementById("avgHours").textContent = 
-      (stats.avg_hours ?? 0).toFixed ? stats.avg_hours.toFixed(2) : Number(stats.avg_hours || 0).toFixed(2);
+
+    // Payments
+    const paymentsUrl = role === "admin" ? "/admin/riders" : "/my/payments";
+    const payRes = await fetch(API_URL + paymentsUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    rawData = await payRes.json();
+    filteredData = [...rawData];
+    renderPaymentsTable(filteredData);
+  } catch (err) {
+    console.error("Dashboard load failed", err);
   }
 }
 
-/**
- * Load payment data based on user role
- * @param {string} token - JWT token
- * @param {string} role - User role
- */
-async function loadPaymentData(token, role) {
-  const paymentsUrl = role === "admin" ? "/admin/riders" : "/my/payments";
-  
-  const paymentsResponse = await fetch(API_URL + paymentsUrl, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  
-  rawData = await paymentsResponse.json();
-  filteredData = [...rawData];
-  renderPaymentsTable(filteredData);
-}
-
-/**
- * Render payments table with data
- * @param {Array} rows - Data rows to render
- */
 function renderPaymentsTable(rows) {
   const tbody = document.querySelector("#paymentsTable tbody");
   if (!tbody) return;
-  
   tbody.innerHTML = "";
 
   if (!rows || !rows.length) {
@@ -682,40 +473,38 @@ function renderPaymentsTable(rows) {
     return;
   }
 
-  // Render each row
-  rows.forEach((row, index) => {
+  rows.forEach((row, idx) => {
     const tr = document.createElement("tr");
-    const getValue = (value) => (value ?? "");
-    const joinDateDisplay = formatDateForDisplay(row.doj);
+    const g = (v) => (v ?? "");
+    const dojDisplay = formatDateForDisplay(row.doj);
 
     tr.innerHTML = `
-      <td>${index + 1}</td>
-      <td>${getValue(row.careem_captain_id)}</td>
-      <td>${getValue(row.name)}</td>
-      <td>${getValue(row.person_code)}</td>
-      <td>${getValue(row.card_no)}</td>
-      <td>${getValue(row.designation)}</td>
-      <td>${joinDateDisplay}</td>
-      <td>${getValue(row.total_working_hours)}</td>
-      <td>${getValue(row.no_of_days)}</td>
-      <td>${getValue(row.total_orders)}</td>
-      <td>${getValue(row.actual_order_pay)}</td>
-      <td>${getValue(row.total_excess_pay_bonus_and_dist_pay)}</td>
-      <td>${getValue(row.gross_pay)}</td>
-      <td>${getValue(row.total_cod_cash_on_delivery)}</td>
-      <td>${getValue(row.vendor_fee)}</td>
-      <td>${getValue(row.traffic_fine)}</td>
-      <td>${getValue(row.loan_saladv_os_fine)}</td>
-      <td>${getValue(row.training_fee)}</td>
-      <td>${getValue(row.net_salary)}</td>
-      <td>${getValue(row.imported_at)}</td>
-      <td class="remarks">${getValue(row.remarks)}</td>
+      <td>${idx + 1}</td>
+      <td>${g(row.careem_captain_id)}</td>
+      <td>${g(row.name)}</td>
+      <td>${g(row.person_code)}</td>
+      <td>${g(row.card_no)}</td>
+      <td>${g(row.designation)}</td>
+      <td>${dojDisplay}</td>
+      <td>${g(row.total_working_hours)}</td>
+      <td>${g(row.no_of_days)}</td>
+      <td>${g(row.total_orders)}</td>
+      <td>${g(row.actual_order_pay)}</td>
+      <td>${g(row.total_excess_pay_bonus_and_dist_pay)}</td>
+      <td>${g(row.gross_pay)}</td>
+      <td>${g(row.total_cod_cash_on_delivery)}</td>
+      <td>${g(row.vendor_fee)}</td>
+      <td>${g(row.traffic_fine)}</td>
+      <td>${g(row.loan_saladv_os_fine)}</td>
+      <td>${g(row.training_fee)}</td>
+      <td>${g(row.net_salary)}</td>
+      <td>${g(row.imported_at)}</td>
+      <td class="remarks">${g(row.remarks)}</td>
     `;
-    
     tbody.appendChild(tr);
   });
 
-  // Add grand totals for admin users
+  // Admin-only Grand Totals
   if (rows.length && getRole() === "admin") {
     const totals = calculateGrandTotals(rows);
     const totalRow = document.createElement("tr");
@@ -738,19 +527,11 @@ function renderPaymentsTable(rows) {
       <td>${totals.net_salary}</td>
       <td></td>
     `;
-    
     tbody.appendChild(totalRow);
   }
 }
-
-/**
- * Calculate grand totals for payment data
- * @param {Array} rows - Data rows to calculate totals from
- * @returns {Object} Object containing summed values
- */
 function calculateGrandTotals(rows) {
-  const sumField = (field) => rows.reduce((sum, row) => sum + toNumber(row[field]), 0);
-  
+  const sumField = (field) => rows.reduce((sum, r) => sum + toNumber(r[field]), 0);
   return {
     total_working_hours: sumField("total_working_hours"),
     no_of_days: sumField("no_of_days"),
@@ -767,46 +548,36 @@ function calculateGrandTotals(rows) {
   };
 }
 
-/**
- * Apply filters to payment data
- */
+// Filters (frontend only)
 function applyFilters() {
-  const searchTerm = document.getElementById("searchInput").value.trim().toLowerCase();
-  const startDateValue = document.getElementById("startDate").value;
-  const endDateValue = document.getElementById("endDate").value;
+  const term = document.getElementById("searchInput").value.trim().toLowerCase();
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
 
-  const startDate = startDateValue ? new Date(startDateValue + "T00:00:00") : null;
-  const endDate = endDateValue ? new Date(endDateValue + "T23:59:59") : null;
+  const startDate = start ? new Date(start + "T00:00:00") : null;
+  const endDate = end ? new Date(end + "T23:59:59") : null;
 
-  filteredData = rawData.filter((row) => {
-    // Create search string from relevant fields
-    const searchString = (
-      (row.careem_captain_id ?? "").toString().toLowerCase() +
+  filteredData = rawData.filter((r) => {
+    const s =
+      (r.careem_captain_id ?? "").toString().toLowerCase() +
       " " +
-      (row.name ?? "").toString().toLowerCase() +
+      (r.name ?? "").toString().toLowerCase() +
       " " +
-      (row.person_code ?? "").toString().toLowerCase()
-    );
+      (r.person_code ?? "").toString().toLowerCase();
 
-    const matchesSearch = searchTerm ? searchString.includes(searchTerm) : true;
+    const matchesSearch = term ? s.includes(term) : true;
 
-    // Check date filters
-    const rowDate = parseLooseDate(row.imported_at);
+    const date = parseLooseDate(r.imported_at);
     let matchesDate = true;
-    
-    if (startDate && rowDate && rowDate < startDate) matchesDate = false;
-    if (endDate && rowDate && rowDate > endDate) matchesDate = false;
-    if ((startDate || endDate) && !rowDate) matchesDate = false;
+    if (startDate && date && date < startDate) matchesDate = false;
+    if (endDate && date && date > endDate) matchesDate = false;
+    if ((startDate || endDate) && !date) matchesDate = false;
 
     return matchesSearch && matchesDate;
   });
 
   renderPaymentsTable(filteredData);
 }
-
-/**
- * Clear all filters and reset view
- */
 function clearFilters() {
   document.getElementById("searchInput").value = "";
   document.getElementById("startDate").value = "";
@@ -815,60 +586,37 @@ function clearFilters() {
   renderPaymentsTable(filteredData);
 }
 
-/**
- * Clear secondary filters (if exists)
- */
 function clearFilters1() {
-  const searchInput1 = document.getElementById("searchInput1");
-  const startDate1 = document.getElementById("startDate1");
-  const endDate1 = document.getElementById("endDate1");
-  
-  if (searchInput1 && startDate1 && endDate1) {
-    searchInput1.value = "";
-    startDate1.value = "";
-    endDate1.value = "";
-    filteredData = [...rawData];
-    renderPaymentsTable(filteredData);
-  }
+  document.getElementById("searchInput1").value = "";
+  document.getElementById("startDate1").value = "";
+  document.getElementById("endDate1").value = "";
+  filteredData = [...rawData];
+  renderPaymentsTable(filteredData);
 }
 
-/**
- * Download data as CSV file
- * @param {Array} rows - Data to export
- */
+// Export CSV
 function downloadCSV(rows) {
-  if (!rows.length) {
-    alert("No data to download!");
-    return;
-  }
-  
+  if (!rows.length) return alert("No data to download!");
   const headers = [
     "sno", "careem_captain_id", "name", "person_code", "card_no", "designation", "doj",
     "total_working_hours", "no_of_days", "total_orders", "actual_order_pay",
     "total_excess_pay_bonus_and_dist_pay", "gross_pay", "total_cod_cash_on_delivery",
     "vendor_fee", "traffic_fine", "loan_saladv_os_fine", "training_fee", "net_salary", "remarks"
   ];
-  
-  // Create CSV content
-  const csvRows = [
+  const csv = [
     headers.join(","),
-    ...rows.map((row, index) =>
-      headers.map((header) => {
-        let value = row[header];
-        if (header === "sno") value = value ?? index + 1;
-        if (header === "doj") value = formatDateForDisplay(row.doj);
-        
-        // Escape quotes in values
-        value = (value ?? "").toString().replace(/"/g, '""');
-        return `"${value}"`;
+    ...rows.map((r, i) =>
+      headers.map((h) => {
+        let v = r[h];
+        if (h === "sno") v = v ?? i + 1;
+        if (h === "doj") v = formatDateForDisplay(r.doj);
+        v = (v ?? "").toString().replace(/"/g, '""');
+        return `"${v}"`;
       }).join(",")
     )
-  ];
-  
-  const csvContent = csvRows.join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  
-  // Create download link
+  ].join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = "rider_payments.csv";
@@ -877,16 +625,9 @@ function downloadCSV(rows) {
   document.body.removeChild(link);
 }
 
-/**
- * Download data as PDF file
- * @param {Array} rows - Data to export
- */
+// Export PDF
 function downloadPDF(rows) {
-  if (!rows.length) {
-    alert("No data to download!");
-    return;
-  }
-  
+  if (!rows.length) return alert("No data to download!");
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF("landscape", "pt", "a3");
 
@@ -897,135 +638,89 @@ function downloadPDF(rows) {
     "Loan/SalAdv/OS Fine", "Training Fee", "Net Salary", "Remarks"
   ];
 
-  const body = rows.map((row, index) => [
-    row.sno ?? (index + 1),
-    safe(row.careem_captain_id),
-    safe(row.name),
-    safe(row.person_code),
-    safe(row.card_no),
-    safe(row.designation),
-    formatDateForDisplay(row.doj),
-    safe(row.total_working_hours),
-    safe(row.no_of_days),
-    safe(row.total_orders),
-    safe(row.actual_order_pay),
-    safe(row.total_excess_pay_bonus_and_dist_pay),
-    safe(row.gross_pay),
-    safe(row.total_cod_cash_on_delivery),
-    safe(row.vendor_fee),
-    safe(row.traffic_fine),
-    safe(row.loan_saladv_os_fine),
-    safe(row.training_fee),
-    safe(row.net_salary),
-    safe(row.remarks)
+  const body = rows.map((r, i) => [
+    r.sno ?? (i + 1),
+    safe(r.careem_captain_id),
+    safe(r.name),
+    safe(r.person_code),
+    safe(r.card_no),
+    safe(r.designation),
+    formatDateForDisplay(r.doj),
+    safe(r.total_working_hours),
+    safe(r.no_of_days),
+    safe(r.total_orders),
+    safe(r.actual_order_pay),
+    safe(r.total_excess_pay_bonus_and_dist_pay),
+    safe(r.gross_pay),
+    safe(r.total_cod_cash_on_delivery),
+    safe(r.vendor_fee),
+    safe(r.traffic_fine),
+    safe(r.loan_saladv_os_fine),
+    safe(r.training_fee),
+    safe(r.net_salary),
+    safe(r.remarks)
   ]);
 
-  // Add title and table to PDF
   doc.setFontSize(14);
   doc.text("Rider Payments Report", 40, 40);
-  
   doc.autoTable({
     head: [headers],
     body,
     startY: 60,
     theme: "grid",
-    styles: { 
-      fontSize: 8, 
-      cellPadding: 3, 
-      overflow: "linebreak", 
-      valign: "top" 
-    },
-    columnStyles: { 
-      19: { cellWidth: 180 } // Wider column for remarks
-    },
-    headStyles: { 
-      fillColor: [41, 128, 185], 
-      textColor: 255 
-    }
+    styles: { fontSize: 8, cellPadding: 3, overflow: "linebreak", valign: "top" },
+    columnStyles: { 19: { cellWidth: 180 } },
+    headStyles: { fillColor: [41, 128, 185], textColor: 255 }
   });
-  
-  // Save PDF
   doc.save("rider_payments.pdf");
 }
-
-// ================================
-// ADMIN PANEL FUNCTIONALITY
-// ================================
-
-/**
- * Setup admin panel UI and event listeners
- */
 function bindAdminUI() {
-  setupCreateUserModal();
-  setupEditUserModal();
-  setupUserDeletion();
-}
-
-/**
- * Setup create user modal functionality
- */
-function setupCreateUserModal() {
   const createUserBtn = document.getElementById("createUserBtn");
   const createModal = document.getElementById("createUserModal");
   const closeModalBtn = document.getElementById("closeModal");
   const createUserForm = document.getElementById("createUserForm");
 
-  // Open modal
+  const editModal = document.getElementById("editUserModal");
+  const closeEditModalBtn = document.getElementById("closeEditModal");
+  const editUserForm = document.getElementById("editUserForm");
+
+  // ------------------
+  // CREATE USER
+  // ------------------
   createUserBtn?.addEventListener("click", () => {
     createUserForm.reset();
     createModal?.classList.remove("hidden");
   });
 
-  // Close modal
-  closeModalBtn?.addEventListener("click", () => {
-    createModal?.classList.add("hidden");
-  });
+  closeModalBtn?.addEventListener("click", () => createModal?.classList.add("hidden"));
 
-  // Handle form submission
+  // Submit create form
   createUserForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const token = getToken();
-    
     const username = document.getElementById("createUsername").value.trim();
     const password = document.getElementById("createPassword").value;
     const role = normalizeRole(document.getElementById("newRole").value);
 
     try {
-      const response = await fetch(
-        `${API_URL}/register?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`, 
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      
+      const res = await fetch(`${API_URL}/register?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&role=${encodeURIComponent(role)}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
       showToast("✅ User created", "success");
       createModal.classList.add("hidden");
-      await loadAdminUsers(); // Refresh user list
-    } catch (error) {
-      showToast(error.message, "error");
+      await loadAdminUsers();
+    } catch (err) {
+      showToast(err.message, "error");
     }
   });
-}
 
-/**
- * Setup edit user modal functionality
- */
-function setupEditUserModal() {
-  const editModal = document.getElementById("editUserModal");
-  const closeEditModalBtn = document.getElementById("closeEditModal");
-  const editUserForm = document.getElementById("editUserForm");
+  // ------------------
+  // EDIT USER
+  // ------------------
+  closeEditModalBtn?.addEventListener("click", () => editModal?.classList.add("hidden"));
 
-  // Close modal
-  closeEditModalBtn?.addEventListener("click", () => {
-    editModal?.classList.add("hidden");
-  });
-
-  // Handle edit button clicks
   document.addEventListener("click", (e) => {
     const editBtn = e.target.closest(".edit-user");
     if (!editBtn) return;
@@ -1034,24 +729,20 @@ function setupEditUserModal() {
     const username = row?.dataset?.username;
     const roleText = row.querySelector('[data-col="role"]').textContent.trim();
 
-    // Populate form with user data
     document.getElementById("editUsername").value = username;
     document.getElementById("editRole").value = roleText === "Admin" ? "Admin" : "User";
 
-    // Show modal
     editModal.classList.remove("hidden");
   });
 
-  // Handle form submission
   editUserForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const token = getToken();
-    
     const username = document.getElementById("editUsername").value.trim();
     const role = normalizeRole(document.getElementById("editRole").value);
 
     try {
-      const response = await fetch(`${API_URL}/admin/update-user`, {
+      const res = await fetch(`${API_URL}/admin/update-user`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -1059,101 +750,70 @@ function setupEditUserModal() {
         },
         body: JSON.stringify({ username, role }),
       });
-      
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      
+      if (!res.ok) throw new Error(await res.text());
       showToast("📝 User updated", "update");
       editModal.classList.add("hidden");
-      await loadAdminUsers(); // Refresh user list
-    } catch (error) {
-      showToast(error.message, "error");
+      await loadAdminUsers();
+    } catch (err) {
+      showToast(err.message, "error");
     }
   });
-}
-
-/**
- * Setup user deletion functionality
- */
-function setupUserDeletion() {
   document.addEventListener("click", async (e) => {
     const deleteBtn = e.target.closest(".delete-user");
     if (!deleteBtn) return;
 
-    // Get username from data attribute
+    // find the row & username
     const row = e.target.closest("tr");
     const username = row?.dataset?.username;
-    
     if (!username) return;
 
-    // Confirm deletion
     if (confirm(`Delete user "${username}"?`)) {
       try {
         const token = getToken();
-        const response = await fetch(
-          `${API_URL}/admin/delete-user/${encodeURIComponent(username)}`, 
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const res = await fetch(`${API_URL}/admin/delete-user/${encodeURIComponent(username)}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || "Delete failed");
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || "Delete failed");
         }
 
         showToast(`❌ User "${username}" deleted`, "delete");
-        await loadAdminUsers(); // Refresh user list
-      } catch (error) {
-        showToast(error.message || "Delete failed", "error");
+        await loadAdminUsers();
+      } catch (err) {
+        showToast(err.message || "Delete failed", "error");
       }
     }
   });
+
 }
 
-/**
- * Load admin users list
- */
 async function loadAdminUsers() {
   const token = getToken();
-  
-  // Only admins can access this
   if (getRole() !== "admin") return;
-  
   const tableBody = document.querySelector("#adminUsersTable tbody");
   if (!tableBody) return;
 
-  // Show loading state
   tableBody.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
-  
   try {
-    const response = await fetch(`${API_URL}/admin/users`, {
+    const res = await fetch(`${API_URL}/admin/users`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    
-    const users = await response.json();
+    if (!res.ok) throw new Error(await res.text());
+    const users = await res.json(); // [{id, username, role}]
     cachedUsers = users;
     renderUsersTable(users);
-  } catch (error) {
+  } catch (err) {
     tableBody.innerHTML = `<tr><td colspan="6">Failed to load users</td></tr>`;
-    showToast(error.message || "Failed to load users", "error");
+    showToast(err.message || "Failed to load users", "error");
   }
 }
 
-/**
- * Render users table with data
- * @param {Array} users - User data to render
- */
 function renderUsersTable(users) {
   const tbody = document.querySelector("#adminUsersTable tbody");
   if (!tbody) return;
-  
   tbody.innerHTML = "";
 
   if (!users || !users.length) {
@@ -1161,44 +821,32 @@ function renderUsersTable(users) {
     return;
   }
 
-  // Render each user row
-  users.forEach((user, index) => {
+  users.forEach((u, idx) => {
     const tr = document.createElement("tr");
-    tr.dataset.username = user.username;
-    
+    tr.dataset.username = u.username;
     tr.innerHTML = `
-      <td>${index + 1}</td>
-      <td data-col="username">${user.username}</td>
-      <td data-col="role">${(user.role || "").toString().toLowerCase()}</td>
-      <td data-col="created_at">${formatDateForDisplay(user.created_at)}</td>
+      <td>${idx + 1}</td>
+      <td data-col="username">${u.username}</td>
+      <td data-col="role">${(u.role || "").toString().toLowerCase()}</td>
+      <td data-col="created_at">${formatDateForDisplay(u.created_at)}</td>
       <td>
-        <button class="btn btn-icon edit-user" title="Edit">
-          <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn btn-icon delete-user" title="Delete">
-          <i class="fas fa-trash"></i>
-        </button>
+        <button class="btn btn-icon edit-user" title="Edit"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-icon delete-user" title="Delete"><i class="fas fa-trash"></i></button>
       </td>
     `;
-    
     tbody.appendChild(tr);
   });
 }
 
 // ================================
-// REPORTS FUNCTIONALITY
+// REPORTS (simple page size control)
 // ================================
-
-/**
- * Setup reports UI and event listeners
- */
 async function bindReportsUI() {
   const searchInput = document.getElementById("searchInput1");
   const filterBtn = document.getElementById("filterBtn1");
   const clearBtn = document.getElementById("clearFilterBtn1");
   const reportLimit = document.getElementById("reportLimit");
   const reportsTable = document.getElementById("reportsTable");
-  
   if (!reportsTable) return;
 
   const token = getToken();
@@ -1208,47 +856,36 @@ async function bindReportsUI() {
     return;
   }
 
-  /**
-   * Load logs with filtering and pagination
-   * @param {number} limit - Number of records to load
-   * @param {number} skip - Number of records to skip
-   */
+
   async function loadLogs(limit = 10, skip = 0) {
     const params = new URLSearchParams();
     params.append("limit", limit);
     params.append("skip", skip);
 
-    // Get filter values
-    const searchTerm = searchInput?.value.trim();
-    const startDate = document.getElementById("startDate1")?.value;
-    const endDate = document.getElementById("endDate1")?.value;
+    const term = searchInput?.value.trim();
+    const start = document.getElementById("startDate1")?.value;
+    const end = document.getElementById("endDate1")?.value;
 
-    // Add filters to request
-    if (searchTerm) params.append("username", searchTerm);
-    if (startDate) params.append("start_date", startDate);
-    if (endDate) params.append("end_date", endDate);
+    // Use "username" parameter as expected by your backend
+    if (term) params.append("username", term);
+    if (start) params.append("start_date", start);
+    if (end) params.append("end_date", end);
 
     try {
-      const response = await fetch(`${API_URL}/admin/logs?${params.toString()}`, {
+      const res = await fetch(`${API_URL}/admin/logs?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to load logs");
-      }
-      
-      const data = await response.json();
+      if (!res.ok) throw new Error("Failed to load logs");
+      const data = await res.json();
+
       renderLogsTable(data.logs);
-    } catch (error) {
-      console.error("Error loading logs:", error);
-      showToast("❌ Failed to load logs: " + error.message);
+    } catch (err) {
+      console.error("Error loading logs:", err);
+      showToast("❌ Failed to load logs: " + err.message);
     }
   }
 
-  /**
-   * Render logs table with data
-   * @param {Array} logs - Log data to render
-   */
   function renderLogsTable(logs) {
     const tbody = reportsTable.querySelector("tbody");
     tbody.innerHTML = "";
@@ -1258,7 +895,6 @@ async function bindReportsUI() {
       return;
     }
 
-    // Render each log row
     logs.forEach((log) => {
       const row = document.createElement("tr");
       row.innerHTML = `
@@ -1267,24 +903,17 @@ async function bindReportsUI() {
         <td>${log.action}</td>
         <td>${formatDateForDisplay(log.timestamp)}</td>
       `;
-      
       tbody.appendChild(row);
     });
   }
 
-  // Event listeners for filters and pagination
+  // Handle dropdown change
   reportLimit?.addEventListener("change", () => {
     loadLogs(parseInt(reportLimit.value), 0);
   });
 
-  searchInput?.addEventListener("input", () => {
-    loadLogs(parseInt(reportLimit?.value) || 10, 0);
-  });
-  
-  filterBtn?.addEventListener("click", () => {
-    loadLogs(parseInt(reportLimit?.value) || 10, 0);
-  });
-  
+  searchInput?.addEventListener("input", () => loadLogs(parseInt(reportLimit?.value) || 10, 0));
+  filterBtn?.addEventListener("click", () => loadLogs(parseInt(reportLimit?.value) || 10, 0));
   clearBtn?.addEventListener("click", () => {
     if (searchInput) searchInput.value = "";
     document.getElementById("startDate1").value = "";
@@ -1297,86 +926,94 @@ async function bindReportsUI() {
 }
 
 // ================================
-// ACCOUNT MANAGEMENT
+// ACCOUNTS (Profile + Change Password)
 // ================================
-
-/**
- * Setup account management UI
- */
 function bindAccountsUI() {
-  // This functionality has been moved to the password section
-  // Keeping this as a placeholder for future account-related features
+  const changePwdForm = document.getElementById("changePasswordForm");
+  if (!changePwdForm) return;
+
+  changePwdForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const token = getToken();
+    const old_password = document.getElementById("oldPassword").value;
+    const new_password = document.getElementById("newPasswordAcc").value;
+
+    try {
+      const res = await fetch(`${API_URL}/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ old_password, new_password }),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      showToast("✅ Password changed successfully", "success");
+      changePwdForm.reset();
+    } catch (err) {
+      showToast(err.message || "Failed to change password", "error");
+    }
+  });
 }
 
-/**
- * Load account profile information
- */
 async function loadAccountProfile() {
   const token = getToken();
-  
   try {
-    const response = await fetch(`${API_URL}/me`, {
+    const res = await fetch(`${API_URL}/me`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    
-    if (!response.ok) {
-      throw new Error("Failed to load profile");
-    }
-    
-    const userData = await response.json();
-    
-    // Update profile information
-    document.getElementById("profileUsername").textContent = userData.username;
-    document.getElementById("profileRole").textContent = userData.role;
-  } catch (error) {
+    if (!res.ok) throw new Error();
+    const me = await res.json();
+    document.getElementById("profileUsername").textContent = me.username;
+    document.getElementById("profileRole").textContent = me.role;
+  } catch {
     showToast("❌ Failed to load profile", "error");
   }
 }
 
-// ================================
-// MY ACCOUNT MODAL
-// ================================
-
-// Get modal elements
-const myAccountLink = document.getElementById("myAccountLink");
+/* ================================
+   My Account Modal – Fetch & Display
+================================== */
+const myAccountLink = document.getElementById("myAccountLink"); // dropdown link
 const myAccountModal = document.getElementById("myAccountModal");
 const closeAccountModal = document.getElementById("closeAccountModal");
+const token = getToken();
 
 // Open modal when "My Account" is clicked
 myAccountLink?.addEventListener("click", async (e) => {
   e.preventDefault();
-  const token = getToken();
 
   try {
-    const response = await fetch(`${API_URL}/profile`, {
+    const res = await fetch(`${API_URL}/profile`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,
       }
     });
 
-    if (!response.ok) {
+    if (!res.ok) {
       throw new Error("Failed to fetch profile");
     }
 
-    const userData = await response.json();
+    const data = await res.json();
 
-    // Fill modal with user data
-    document.getElementById("accId").textContent = userData.id || "-";
-    document.getElementById("accUsername").textContent = userData.username || "-";
-    document.getElementById("accRole").textContent = userData.role || "-";
-    document.getElementById("accCreated").textContent = userData.created_at || "-";
+    // Fill modal fields
+    document.getElementById("accId").textContent = data.id || "-";
+    document.getElementById("accUsername").textContent = data.username || "-";
+    document.getElementById("accRole").textContent = data.role || "-";
+    document.getElementById("accCreated").textContent = data.created_at || "-";
 
     // Show modal
     myAccountModal.classList.remove("hidden");
 
-  } catch (error) {
-    console.error("Error fetching profile:", error);
+  } catch (err) {
+    console.error("Error fetching profile:", err);
     alert("⚠ Unable to load profile. Please login again.");
   }
 });
 
-// Close modal with button
+// Close modal
 closeAccountModal?.addEventListener("click", () => {
   myAccountModal.classList.add("hidden");
 });
@@ -1387,3 +1024,4 @@ myAccountModal?.addEventListener("click", (e) => {
     myAccountModal.classList.add("hidden");
   }
 });
+
