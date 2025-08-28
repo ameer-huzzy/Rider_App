@@ -30,17 +30,15 @@ app = FastAPI()
 # ================================
 # CORS
 # ================================
-origins = [
-    "https://rider-web-app.onrender.com"
-]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["https://rider-web-app.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ================================
 # Password hashing
