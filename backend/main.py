@@ -31,8 +31,6 @@ app = FastAPI()
 # CORS
 # ================================
 origins = [
-    "http://127.0.0.1:5500",  # your frontend local origin
-    "http://localhost:5500"
     "https://rider-web-app.onrender.com"
 ]
 
