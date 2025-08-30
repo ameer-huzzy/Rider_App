@@ -30,7 +30,10 @@ app = FastAPI()
 # ================================
 # CORS
 # ================================
-
+origins = [
+    "https://rider-app-frontend.onrender.com",
+    "http://localhost:5500",  # for local testing if needed
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://rider-app-frontend.onrender.com"],
