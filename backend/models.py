@@ -3,7 +3,7 @@ from .database import Base
 from pydantic import BaseModel
 
 class Riderpayment(Base):
-    __tablename__ = "careem_payroll_2025"  # same table
+    __tablename__ = "payroll_june_2025"  # same table
 
     sno = Column(Integer, primary_key=True, index=True, autoincrement=True)
     careem_captain_id = Column(String, index=True)
